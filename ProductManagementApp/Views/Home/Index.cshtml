@@ -1,0 +1,165 @@
+﻿@{
+    ViewData["Title"] = "Product Management";
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"]</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css" />
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
+</head>
+<body>
+    <div class="container mt-5">
+        <h2>Product Management</h2>
+
+        <!-- Product Form -->
+        <form id="productForm" class="mb-4">
+            <input type="hidden" id="productId" />
+            <div class="form-group">
+                <label>Name</label>
+                <input type="text" class="form-control" id="productName" required />
+            </div>
+            <div class="form-group">
+                <label>Description</label>
+                <textarea class="form-control" id="productDescription"></textarea>
+            </div>
+            <div class="form-group">
+                <label>Price</label>
+                <input type="number" class="form-control" id="productPrice" required />
+            </div>
+            <button type="submit" class="btn btn-primary">Add Product</button>
+            <button type="button" id="cancelEdit" class="btn btn-secondary" style="display:none;">Cancel</button>
+        </form>
+
+        <!-- Product List -->
+        <h3 class="mb-3">Product List</h3>
+        <div class="table-responsive">
+            <table class="table table-bordered">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Description</th>
+                        <th>Price</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="productList"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        const apiUrl = '/api/products';
+
+        $(document).ready(function () {
+            loadProducts();
+
+            $('#productForm').on('submit', function (e) {
+                e.preventDefault();
+                const id = $('#productId').val();
+                const productData = {
+                    Name: $('#productName').val(),
+                    Description: $('#productDescription').val(),
+                    Price: parseFloat($('#productPrice').val())
+                };
+
+                if (id) {
+                    // Update product
+                    $.ajax({
+                        url: `${apiUrl}/${id}`,
+                        type: 'PUT',
+                        contentType: 'application/json',
+                        data: JSON.stringify(productData),
+                        success: function () {
+                            toastr.success('Product updated successfully!');
+                            loadProducts();
+                            resetForm();
+                        },
+                        error: function () {
+                            toastr.error('Error updating product!');
+                        }
+                    });
+                } else {
+                    // Create product
+                    $.ajax({
+                        url: apiUrl,
+                        type: 'POST',
+                        contentType: 'application/json',
+                        data: JSON.stringify(productData),
+                        success: function () {
+                            toastr.success('Product added successfully!');
+                            loadProducts();
+                            resetForm();
+                        },
+                        error: function () {
+                            toastr.error('Error adding product!');
+                        }
+                    });
+                }
+            });
+
+            function loadProducts() {
+                $.get(apiUrl, function (data) {
+                    $('#productList').empty();
+                    data.forEach(product => {
+                        $('#productList').append(`
+                                    <tr>
+                                        <td>${product.name}</td>
+                                        <td>${product.description || "N/A"}</td>
+                                        <td>$${product.price}</td>
+                                        <td>
+                                            <button class="btn btn-info btn-sm edit" data-id="${product.id}">Edit</button>
+                                            <button class="btn btn-danger btn-sm delete" data-id="${product.id}">Delete</button>
+                                        </td>
+                                    </tr>
+                                `);
+                    });
+                });
+            }
+
+            function resetForm() {
+                $('#productId').val('');
+                $('#productName').val('');
+                $('#productDescription').val('');
+                $('#productPrice').val('');
+                $('#cancelEdit').hide();
+            }
+
+            $('#productList').on('click', '.edit', function () {
+                const id = $(this).data('id');
+                $.get(`${apiUrl}/${id}`, function (product) {
+                    $('#productId').val(product.id);
+                    $('#productName').val(product.name);
+                    $('#productDescription').val(product.description);
+                    $('#productPrice').val(product.price);
+                    $('#cancelEdit').show();
+                });
+            });
+
+            $('#productList').on('click', '.delete', function () {
+                const id = $(this).data('id');
+                $.ajax({
+                    url: `${apiUrl}/${id}`,
+                    type: 'DELETE',
+                    success: function () {
+                        toastr.success('Product deleted successfully!');
+                        loadProducts();
+                    },
+                    error: function () {
+                        toastr.error('Error deleting product!');
+                    }
+                });
+            });
+
+            $('#cancelEdit').on('click', function () {
+                resetForm();
+            });
+        });
+    </script>
+</body>
+</html>
